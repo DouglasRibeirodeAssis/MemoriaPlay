@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "130634621465",
+    "project_id": "memoriaplay-b92d8",
+    "storage_bucket": "memoriaplay-b92d8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:130634621465:android:e207b683ea2b4e907b4088",
+        "android_client_info": {
+          "package_name": "com.example.memoriaplay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCK4ctBvhDuRXuaAQuzWpXxvarH0D-77NA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
