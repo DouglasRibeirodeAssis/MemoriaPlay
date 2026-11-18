@@ -2,8 +2,10 @@ package br.com.memoriaplay.admin
 
 import br.com.memoriaplay.data.local.dao.PartidaDao
 import br.com.memoriaplay.data.local.dao.TemaDao
+import br.com.memoriaplay.data.local.dao.UsuarioDao
 import br.com.memoriaplay.data.local.entity.PartidaEntity
 import br.com.memoriaplay.data.local.entity.TemaEntity
+import br.com.memoriaplay.data.local.entity.UsuarioEntity
 import br.com.memoriaplay.features.admin.data.AdminRepository
 import br.com.memoriaplay.features.admin.data.SessaoRepository
 import br.com.memoriaplay.features.admin.model.TipoPerfil
@@ -34,10 +36,8 @@ class FakeTemaDao : TemaDao {
     override fun observarAtivos(): Flow<List<TemaEntity>> =
         tabela.map { lista -> lista.filter { it.ativo } }
 
-    override fun buscarPorNome(termo: String): Flow<List<TemaEntity>> =
-        tabela.map { lista -> lista.filter { it.nome.contains(termo) } }
-
-    override suspend fun contar(): Int = tabela.value.size
+    override fun pesquisar(busca: String): Flow<List<TemaEntity>> =
+        tabela.map { lista -> lista.filter { it.nome.contains(busca, ignoreCase = true) } }
 
     override suspend fun buscarPorId(id: Long): TemaEntity? = tabela.value.find { it.id == id }
 
@@ -73,10 +73,13 @@ class FakePartidaDao : PartidaDao {
     override fun observarPorModo(modo: String): Flow<List<PartidaEntity>> =
         tabela.map { lista -> lista.filter { it.modo == modo } }
 
-    override fun observarRanking(): Flow<List<PartidaEntity>> =
-        tabela.map { lista -> lista.filter { it.venceu } }
-
     override suspend fun buscarPorId(id: Long): PartidaEntity? = tabela.value.find { it.id == id }
+
+    override fun totalPartidas(): Flow<Int> = tabela.map { it.size }
+
+    override fun totalVitorias(): Flow<Int> = tabela.map { lista -> lista.count { it.venceu } }
+
+    override fun melhorTempo(): Flow<Int?> = tabela.map { lista -> lista.filter { it.venceu }.minOfOrNull { it.tempoSegundos } }
 
     override suspend fun inserir(partida: PartidaEntity): Long {
         tabela.value = tabela.value + partida
@@ -94,10 +97,32 @@ class FakePartidaDao : PartidaDao {
     }
 }
 
+class FakeUsuarioDao : UsuarioDao {
+    val tabela = MutableStateFlow<List<UsuarioEntity>>(listOf(
+        UsuarioEntity(id = 1, usuario = "admin", senha = "1234", tipo = "ADMIN"),
+        UsuarioEntity(id = 2, usuario = "jogador", senha = "1234", tipo = "JOGADOR")
+    ))
+
+    override suspend fun buscarPorUsuario(nome: String): UsuarioEntity? {
+        return tabela.value.find { it.usuario.equals(nome, ignoreCase = true) }
+    }
+
+    override suspend fun inserir(usuario: UsuarioEntity): Long {
+        val novo = usuario.copy(id = (tabela.value.size + 1).toLong())
+        tabela.value = tabela.value + novo
+        return novo.id
+    }
+
+    override suspend fun contar(): Int = tabela.value.size
+
+    override fun observarUsuarios(): Flow<List<UsuarioEntity>> = tabela
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class AdminViewModelTest {
     private lateinit var temaDao: FakeTemaDao
     private lateinit var partidaDao: FakePartidaDao
+    private lateinit var usuarioDao: FakeUsuarioDao
     private lateinit var sessao: SessaoRepository
     private lateinit var viewModel: AdminViewModel
 
@@ -119,7 +144,8 @@ class AdminViewModelTest {
         temaDao = FakeTemaDao()
         partidaDao = FakePartidaDao()
         partidaDao.tabela.value = listOf(partidaExemplo)
-        sessao = SessaoRepository()
+        usuarioDao = FakeUsuarioDao()
+        sessao = SessaoRepository(usuarioDao)
         viewModel = AdminViewModel(AdminRepository(temaDao, partidaDao), sessao)
     }
 

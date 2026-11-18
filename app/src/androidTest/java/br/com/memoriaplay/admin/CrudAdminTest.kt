@@ -91,7 +91,7 @@ class CrudAdminTest {
 
     @Test
     fun telaLogin_jogador1234_entraComoJogador() {
-        val viewModel = AdminViewModel(repository, SessaoRepository())
+        val viewModel = AdminViewModel(repository, SessaoRepository(db.usuarioDao()))
         var foiParaJogador = false
 
         composeRule.setContent {
@@ -112,8 +112,8 @@ class CrudAdminTest {
     }
 
     @Test
-    fun telaAdmin_comPerfilJogador_mostraAcessoRestrito() {
-        val sessao = SessaoRepository()
+    fun telaAdmin_comPerfilJogador_mostraAcessoRestrito() = runBlocking {
+        val sessao = SessaoRepository(db.usuarioDao())
         sessao.entrar("jogador", "1234")
         val viewModel = AdminViewModel(repository, sessao)
 
@@ -125,8 +125,8 @@ class CrudAdminTest {
     }
 
     @Test
-    fun telaAdmin_comPerfilAdmin_mostraTemasEPartidas() {
-        val sessao = SessaoRepository()
+    fun telaAdmin_comPerfilAdmin_mostraTemasEPartidas() = runBlocking {
+        val sessao = SessaoRepository(db.usuarioDao())
         sessao.entrar("admin", "1234")
         val viewModel = AdminViewModel(repository, sessao)
 

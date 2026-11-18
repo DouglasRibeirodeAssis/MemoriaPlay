@@ -74,13 +74,15 @@ class AdminViewModel(
             return
         }
 
-        val perfil = sessaoRepository.entrar(estado.usuario, estado.senha)
+        viewModelScope.launch {
+            val perfil = sessaoRepository.entrar(estado.usuario, estado.senha)
 
-        if (perfil == null) {
-            mostrarErro("Usuário ou senha inválidos.")
-        } else {
-            _uiState.update { it.copy(senha = "") }
-            mostrarSucesso("Bem-vindo, ${perfil.nome}! Perfil: ${perfil.descricaoTipo}.")
+            if (perfil == null) {
+                mostrarErro("Usuário ou senha inválidos.")
+            } else {
+                _uiState.update { it.copy(senha = "") }
+                mostrarSucesso("Bem-vindo, ${perfil.nome}! Perfil: ${perfil.descricaoTipo}.")
+            }
         }
     }
 
