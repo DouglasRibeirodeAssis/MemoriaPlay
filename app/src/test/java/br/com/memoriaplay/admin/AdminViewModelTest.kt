@@ -197,6 +197,16 @@ class AdminViewModelTest {
     }
 
     @Test
+    fun jogadorExistente_comSenhaErrada_naoEntra() {
+        viewModel.onUsuarioChange("jogador")
+        viewModel.onSenhaChange("senha-incorreta")
+        viewModel.onEntrar()
+
+        assertNull(viewModel.uiState.value.perfilLogado)
+        assertEquals("Usuário ou senha inválidos.", viewModel.uiState.value.mensagemErro)
+    }
+
+    @Test
     fun jogador_naoConsegueInserirTema_mesmoChamandoOViewModelDireto() {
         entrar("jogador")
 

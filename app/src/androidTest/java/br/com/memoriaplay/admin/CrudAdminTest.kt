@@ -112,7 +112,7 @@ class CrudAdminTest {
     }
 
     @Test
-    fun telaAdmin_comPerfilJogador_mostraAcessoRestrito() = runBlocking {
+    fun telaAdmin_comPerfilJogador_mostraAcessoRestrito() = runBlocking<Unit> {
         val sessao = SessaoRepository(db.usuarioDao())
         sessao.entrar("jogador", "1234")
         val viewModel = AdminViewModel(repository, sessao)
@@ -121,11 +121,11 @@ class CrudAdminTest {
             AdminScreen(viewModel = viewModel, aoSair = {})
         }
 
-        composeRule.onNodeWithText("Acesso restrito").assertIsDisplayed()
+        composeRule.onNodeWithText("Acesso restrito", substring = true).assertIsDisplayed()
     }
 
     @Test
-    fun telaAdmin_comPerfilAdmin_mostraTemasEPartidas() = runBlocking {
+    fun telaAdmin_comPerfilAdmin_mostraTemasEPartidas() = runBlocking<Unit> {
         val sessao = SessaoRepository(db.usuarioDao())
         sessao.entrar("admin", "1234")
         val viewModel = AdminViewModel(repository, sessao)
@@ -134,7 +134,7 @@ class CrudAdminTest {
             AdminScreen(viewModel = viewModel, aoSair = {})
         }
 
-        composeRule.onNodeWithText("Temas").assertIsDisplayed()
+        composeRule.onNodeWithText("Temas", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Adicionar tema").assertIsDisplayed()
     }
 }

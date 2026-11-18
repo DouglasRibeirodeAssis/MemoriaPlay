@@ -29,7 +29,8 @@ private val fundo = Brush.verticalGradient(
 @Composable
 fun CatalogoScreen(
     viewModel: CatalogoViewModel,
-    onSelecionarTema: (Long) -> Unit = {}
+    onSelecionarTema: (Long) -> Unit = {},
+    onVerCartas: (Long) -> Unit = {}
 ) {
     val estado by viewModel.uiState.collectAsState()
 
@@ -143,7 +144,8 @@ fun CatalogoScreen(
                     aoSelecionar = {
                         viewModel.selecionarTema(tema.id)
                         onSelecionarTema(tema.id)
-                    }
+                    },
+                    aoVerCartas = { onVerCartas(tema.id) }
                 )
             }
         }
@@ -194,7 +196,8 @@ private fun OpcaoCatalogo(
 private fun CartaoTemaColorido(
     tema: TemaCatalogo,
     selecionado: Boolean,
-    aoSelecionar: () -> Unit
+    aoSelecionar: () -> Unit,
+    aoVerCartas: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -230,6 +233,9 @@ private fun CartaoTemaColorido(
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text(if (selecionado) "Jogar novamente" else "Jogar")
+            }
+            OutlinedButton(onClick = aoVerCartas) {
+                Text("Ver categorias e cartas")
             }
         }
     }

@@ -41,7 +41,13 @@ class FirebaseDesafiosSource(
 
                 quantidadePares =
                     documento.getLong("quantidadePares")
-                        ?.toInt() ?: 3
+                        ?.toInt() ?: 3,
+
+                tempoLimiteSegundos = documento.getLong("tempoLimiteSegundos")
+                    ?.toInt()?.takeIf { it > 0 },
+
+                tentativasMaximas = documento.getLong("tentativasMaximas")
+                    ?.toInt()?.takeIf { it > 0 }
             )
         }
     }

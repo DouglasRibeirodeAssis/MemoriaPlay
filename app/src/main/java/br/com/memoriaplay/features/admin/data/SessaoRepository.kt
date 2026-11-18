@@ -8,55 +8,44 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class SessaoRepository(
-    private val usuarioDao: UsuarioDao
-) {
+class SessaoRepository(private val usuarioDao: UsuarioDao) {
     private val _perfilLogado = MutableStateFlow<PerfilUsuario?>(null)
     val perfilLogado: StateFlow<PerfilUsuario?> = _perfilLogado.asStateFlow()
 
     suspend fun entrar(usuario: String, senha: String): PerfilUsuario? {
-        val nomeTrim = usuario.trim()
-        if (nomeTrim.isBlank()) return null
+        // Uma tentativa de novo login não deve manter uma sessão anterior.
+        _perfilLogado.value = null
+        val nome = usuario.trim()
+        if (nome.isEmpty() || senha.isBlank()) return null
 
-        val usuarioLower = nomeTrim.lowercase()
-
-        // Buscar usuário no banco
-        var entity = usuarioDao.buscarPorUsuario(nomeTrim)
-
-        if (usuarioLower == "admin") {
-            if (entity == null) {
-                usuarioDao.inserir(UsuarioEntity(usuario = "admin", senha = "1234", tipo = "ADMIN"))
-                entity = usuarioDao.buscarPorUsuario("admin")
+        var registro = usuarioDao.buscarPorUsuario(nome)
+        if (registro == null) {
+            if (nome.equals("admin", ignoreCase = true)) {
+                // Compatibilidade com os bancos em memória dos testes existentes.
+                usuarioDao.inserir(
+                    UsuarioEntity(usuario = "admin", senha = "1234", tipo = "ADMIN")
+                )
+            } else {
+                // Cadastro simplificado de novo jogador no primeiro acesso.
+                usuarioDao.inserir(
+                    UsuarioEntity(usuario = nome, senha = senha, tipo = "JOGADOR")
+                )
             }
-            if (entity?.senha == senha) {
-                val perfil = PerfilUsuario(nome = entity.usuario, tipo = TipoPerfil.ADMIN)
-                _perfilLogado.value = perfil
-                return perfil
-            }
-            return null
+            registro = usuarioDao.buscarPorUsuario(nome)
         }
 
-        // Para jogador / custom player
-        if (entity == null) {
-            usuarioDao.inserir(UsuarioEntity(usuario = nomeTrim, senha = senha.ifBlank { "1234" }, tipo = "JOGADOR"))
-            entity = usuarioDao.buscarPorUsuario(nomeTrim)
-        }
+        // A senha registrada deve coincidir, inclusive para jogadores já cadastrados.
+        if (registro == null || registro.senha != senha) return null
 
-        if (entity != null) {
-            val tipo = if (entity.tipo == "ADMIN") TipoPerfil.ADMIN else TipoPerfil.JOGADOR
-            val perfil = PerfilUsuario(nome = entity.usuario, tipo = tipo)
-            _perfilLogado.value = perfil
-            return perfil
+        val tipo = if (registro.tipo == "ADMIN") TipoPerfil.ADMIN else TipoPerfil.JOGADOR
+        return PerfilUsuario(nome = registro.usuario, tipo = tipo).also {
+            _perfilLogado.value = it
         }
-
-        return null
     }
 
     fun sair() {
         _perfilLogado.value = null
     }
 
-    fun ehAdmin(): Boolean {
-        return _perfilLogado.value?.ehAdmin == true
-    }
+    fun ehAdmin(): Boolean = _perfilLogado.value?.ehAdmin == true
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import br.com.memoriaplay.features.desafios.viewmodel.DesafiosViewModel
+import br.com.memoriaplay.features.desafios.model.Desafio
 
 private val roxo = Color(0xFF673AB7)
 private val rosa = Color(0xFFFF91C2)
@@ -30,7 +31,10 @@ private val fundo = Brush.verticalGradient(
 )
 
 @Composable
-fun DesafiosScreen(viewModel: DesafiosViewModel) {
+fun DesafiosScreen(
+    viewModel: DesafiosViewModel,
+    aoIniciarDesafio: ((Desafio) -> Unit)? = null
+) {
     val estado by viewModel.uiState.collectAsState()
 
     LaunchedEffect(viewModel) {
@@ -39,14 +43,16 @@ fun DesafiosScreen(viewModel: DesafiosViewModel) {
 
     DesafiosScreenContent(
         estado = estado,
-        aoTentarNovamente = viewModel::tentarNovamente
+        aoTentarNovamente = viewModel::tentarNovamente,
+        aoIniciarDesafio = aoIniciarDesafio
     )
 }
 
 @Composable
 private fun DesafiosScreenContent(
     estado: DesafiosUiState,
-    aoTentarNovamente: () -> Unit
+    aoTentarNovamente: () -> Unit,
+    aoIniciarDesafio: ((Desafio) -> Unit)?
 ) {
     LazyColumn(
         modifier = Modifier
@@ -181,6 +187,32 @@ private fun DesafiosScreenContent(
                                 color = Color(0xFF4B297B),
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+
+                        desafio.tempoLimiteSegundos?.takeIf { it > 0 }?.let { limite ->
+                            Text("⏱️ Concluir em até $limite segundos", color = roxo)
+                        }
+                        desafio.tentativasMaximas?.takeIf { it > 0 }?.let { limite ->
+                            Text("🎯 No máximo $limite tentativas", color = roxo)
+                        }
+                        if (aoIniciarDesafio != null) {
+                            val valido = desafio.quantidadePares in 3..12 &&
+                                desafio.id.isNotBlank()
+                            Button(
+                                onClick = { aoIniciarDesafio(desafio) },
+                                enabled = valido,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = roxo)
+                            ) {
+                                Text("Iniciar desafio")
+                            }
+                            if (!valido) {
+                                Text(
+                                    "Este desafio não pode ser iniciado: " +
+                                        "o jogo aceita de 3 a 12 pares.",
+                                    color = Color(0xFFB3261E)
+                                )
+                            }
                         }
                     }
                 }

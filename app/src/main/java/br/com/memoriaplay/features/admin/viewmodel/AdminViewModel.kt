@@ -4,7 +4,10 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import br.com.memoriaplay.data.local.entity.CartaEntity
+import br.com.memoriaplay.data.local.entity.CategoriaEntity
 import br.com.memoriaplay.data.local.entity.PartidaEntity
+import br.com.memoriaplay.features.catalogo.data.RecursosCartas
 import br.com.memoriaplay.data.local.entity.TemaEntity
 import br.com.memoriaplay.features.admin.data.AdminRepository
 import br.com.memoriaplay.features.admin.data.SessaoRepository
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -40,7 +44,20 @@ class AdminViewModel(
                     mostrarErro("Não foi possível carregar os temas.")
                 }
                 .collect { temas ->
-                    _uiState.update { it.copy(temas = temas) }
+                    _uiState.update { estado ->
+                        val selecionado = estado.temaCategoriaId
+                            ?.takeIf { id -> temas.any { tema -> tema.id == id } }
+                            ?: temas.firstOrNull()?.id
+                        val categoriaSelecionada = estado.categoriaCartaId
+                            ?.takeIf { id -> estado.categorias.any {
+                                categoria -> categoria.id == id && categoria.temaId == selecionado
+                            } }
+                            ?: estado.categorias.firstOrNull { it.temaId == selecionado }?.id
+                        estado.copy(
+                            temas = temas, temaCategoriaId = selecionado,
+                            categoriaCartaId = categoriaSelecionada
+                        )
+                    }
                 }
         }
 
@@ -55,6 +72,147 @@ class AdminViewModel(
                 .collect { partidas ->
                     _uiState.update { it.copy(partidas = partidas) }
                 }
+        }
+    }
+
+    // Os dados só são exibidos para um Administrador autenticado.
+    init { observarCatalogoDetalhado() }
+
+    // Fluxos reativos de categorias e cartas, respeitando o perfil autenticado.
+    private fun observarCatalogoDetalhado() {
+        viewModelScope.launch {
+            combine(sessaoRepository.perfilLogado, adminRepository.buscarCategorias()) { perfil, itens ->
+                if (perfil?.ehAdmin == true) itens else emptyList()
+            }.catch { mostrarErro("Não foi possível carregar categorias.") }.collect { itens ->
+                _uiState.update { estado ->
+                    val temaAtual = estado.temaCategoriaId
+                    val novoTema = temaAtual ?: estado.temas.firstOrNull()?.id
+                    val categoriaSelecionada = estado.categoriaCartaId
+                        ?.takeIf { id -> itens.any { it.id == id } }
+                        ?: itens.firstOrNull { it.temaId == novoTema }?.id
+                    estado.copy(
+                        categorias = itens,
+                        temaCategoriaId = novoTema,
+                        categoriaCartaId = categoriaSelecionada
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            combine(sessaoRepository.perfilLogado, adminRepository.buscarCartas()) { perfil, itens ->
+                if (perfil?.ehAdmin == true) itens else emptyList()
+            }.catch { mostrarErro("Não foi possível carregar cartas.") }.collect { itens ->
+                _uiState.update { it.copy(cartas = itens) }
+            }
+        }
+    }
+
+    fun onSelecionarTemaCategoria(id: Long) {
+        _uiState.update { estado ->
+            estado.copy(
+                temaCategoriaId = id,
+                categoriaCartaId = estado.categorias.firstOrNull { it.temaId == id }?.id,
+                categoriaEmEdicao = null, nomeCategoria = "", ordemCategoria = "0", ativoCategoria = true,
+                cartaEmEdicao = null, nomeCarta = "", ordemCarta = "0", ativoCarta = true
+            )
+        }
+    }
+    fun onNomeCategoriaChange(valor: String) { _uiState.update { it.copy(nomeCategoria = valor) } }
+    fun onOrdemCategoriaChange(valor: String) { _uiState.update { it.copy(ordemCategoria = valor) } }
+    fun onAtivoCategoriaChange(valor: Boolean) { _uiState.update { it.copy(ativoCategoria = valor) } }
+
+    fun onEditarCategoria(categoria: CategoriaEntity) {
+        if (bloquearSeNaoForAdmin()) return
+        _uiState.update { it.copy(
+            categoriaEmEdicao = categoria, temaCategoriaId = categoria.temaId,
+            nomeCategoria = categoria.nome, ordemCategoria = categoria.ordem.toString(),
+            ativoCategoria = categoria.ativo
+        ) }
+    }
+    fun onCancelarEdicaoCategoria() {
+        _uiState.update { it.copy(
+            categoriaEmEdicao = null, nomeCategoria = "", ordemCategoria = "0", ativoCategoria = true
+        ) }
+    }
+    fun onSalvarCategoria() {
+        if (bloquearSeNaoForAdmin()) return
+        val estado = _uiState.value
+        val temaId = estado.temaCategoriaId
+        val nome = estado.nomeCategoria.trim()
+        val ordem = estado.ordemCategoria.toIntOrNull()
+        if (temaId == null || estado.temas.none { it.id == temaId }) {
+            mostrarErro("Selecione um tema existente."); return
+        }
+        if (nome.isBlank() || ordem == null) {
+            mostrarErro("Informe nome e ordem válida da categoria."); return
+        }
+        executarComoAdmin("Categoria salva.", "Erro ao salvar categoria.") {
+            val anterior = estado.categoriaEmEdicao
+            if (anterior == null) adminRepository.inserirCategoria(temaId, nome, ordem, estado.ativoCategoria)
+            else adminRepository.atualizarCategoria(anterior.copy(
+                temaId = temaId, nome = nome, ordem = ordem, ativo = estado.ativoCategoria
+            ))
+            onCancelarEdicaoCategoria()
+        }
+    }
+    fun onExcluirCategoria(item: CategoriaEntity) {
+        executarComoAdmin("Categoria excluída.", "Erro ao excluir categoria.") {
+            adminRepository.removerCategoria(item)
+        }
+    }
+
+    fun onSelecionarCategoriaCarta(id: Long) {
+        _uiState.update { it.copy(
+            categoriaCartaId = id, cartaEmEdicao = null, nomeCarta = "", ordemCarta = "0"
+        ) }
+    }
+    fun onNomeCartaChange(valor: String) { _uiState.update { it.copy(nomeCarta = valor) } }
+    fun onRecursoCartaChange(valor: String) { _uiState.update { it.copy(recursoCarta = valor) } }
+    fun onOrdemCartaChange(valor: String) { _uiState.update { it.copy(ordemCarta = valor) } }
+    fun onAtivoCartaChange(valor: Boolean) { _uiState.update { it.copy(ativoCarta = valor) } }
+    fun onEditarCarta(item: CartaEntity) {
+        if (bloquearSeNaoForAdmin()) return
+        _uiState.update { it.copy(
+            categoriaCartaId = item.categoriaId,
+            temaCategoriaId = it.categorias.firstOrNull { cat -> cat.id == item.categoriaId }?.temaId
+                ?: it.temaCategoriaId,
+            cartaEmEdicao = item,
+            nomeCarta = item.nome, recursoCarta = item.imagemRecurso,
+            ordemCarta = item.ordem.toString(), ativoCarta = item.ativo
+        ) }
+    }
+    fun onCancelarEdicaoCarta() {
+        _uiState.update { it.copy(
+            cartaEmEdicao = null, nomeCarta = "", recursoCarta = "objeto_bola",
+            ordemCarta = "0", ativoCarta = true
+        ) }
+    }
+    fun onSalvarCarta() {
+        if (bloquearSeNaoForAdmin()) return
+        val estado = _uiState.value
+        val categoriaId = estado.categoriaCartaId
+        val nome = estado.nomeCarta.trim()
+        val ordem = estado.ordemCarta.toIntOrNull()
+        if (categoriaId == null || estado.categorias.none { it.id == categoriaId }) {
+            mostrarErro("Selecione uma categoria existente."); return
+        }
+        if (nome.isBlank() || ordem == null || RecursosCartas.buscar(estado.recursoCarta) == null) {
+            mostrarErro("Informe nome, ordem válida e uma imagem disponível."); return
+        }
+        executarComoAdmin("Carta salva.", "Erro ao salvar carta.") {
+            val anterior = estado.cartaEmEdicao
+            if (anterior == null) adminRepository.inserirCarta(
+                categoriaId, nome, estado.recursoCarta, ordem, estado.ativoCarta
+            ) else adminRepository.atualizarCarta(anterior.copy(
+                categoriaId = categoriaId, nome = nome, imagemRecurso = estado.recursoCarta,
+                ordem = ordem, ativo = estado.ativoCarta
+            ))
+            onCancelarEdicaoCarta()
+        }
+    }
+    fun onExcluirCarta(item: CartaEntity) {
+        executarComoAdmin("Carta excluída.", "Erro ao excluir carta.") {
+            adminRepository.removerCarta(item)
         }
     }
 
