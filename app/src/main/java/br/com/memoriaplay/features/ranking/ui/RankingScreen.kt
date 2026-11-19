@@ -176,7 +176,7 @@ fun RankingScreen(viewModel: RankingViewModel? = null) {
             }
 
             estado.mensagemErro != null -> item {
-                Text(estado.mensagemErro ?: "", color = Color.Red)
+                Text(estado.mensagemErro ?: "", color = MaterialTheme.colorScheme.error)
             }
 
             partidas.isEmpty() -> item {
