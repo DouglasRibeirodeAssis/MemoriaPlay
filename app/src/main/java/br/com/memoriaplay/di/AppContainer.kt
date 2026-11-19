@@ -2,6 +2,8 @@ package br.com.memoriaplay.di
 
 import android.content.Context
 import br.com.memoriaplay.data.local.AppDatabase
+import br.com.memoriaplay.data.preferences.PreferenciasLocais
+import br.com.memoriaplay.features.config.data.PreferenciasRepository
 import br.com.memoriaplay.features.catalogo.data.CatalogoRepository
 import br.com.memoriaplay.features.home.data.HomeRepository
 import br.com.memoriaplay.features.home.data.PartidasHomeDataSource
@@ -11,6 +13,8 @@ import kotlinx.coroutines.flow.combine
 /** Dependências compartilhadas da aplicação. */
 class AppContainer(context: Context) {
     private val banco = AppDatabase.obter(context)
+
+    val preferenciasRepository = PreferenciasRepository(PreferenciasLocais(context))
 
     val catalogoRepository = CatalogoRepository(banco.temaDao())
 

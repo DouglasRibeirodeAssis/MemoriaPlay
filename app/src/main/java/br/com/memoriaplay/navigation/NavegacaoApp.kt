@@ -53,6 +53,8 @@ import br.com.memoriaplay.features.jogo.ui.ResultadoScreen
 import br.com.memoriaplay.features.jogo.ui.SelecionarModoScreen
 import br.com.memoriaplay.features.jogo.viewmodel.JogoViewModel
 import br.com.memoriaplay.features.ranking.ui.RankingScreen
+import br.com.memoriaplay.features.config.ui.ConfiguracoesScreen
+import br.com.memoriaplay.features.config.viewmodel.ConfiguracoesViewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
@@ -388,18 +390,18 @@ fun NavegacaoApp(viewModelFactory: AppViewModelFactory) {
             }
 
             composable(Rotas.CONFIGURACOES) {
-                TelaDestino(
-                    titulo = "Configurações",
-                    descricao = "Preferências e acessibilidade serão integradas pelo " +
-                        "integrante responsável. Você entrou como ${perfil?.nome ?: "Jogador"}.",
-                    acao = {
+                val configuracoesViewModel: ConfiguracoesViewModel = viewModel(
+                    factory = viewModelFactory
+                )
+                ConfiguracoesScreen(
+                    viewModel = configuracoesViewModel,
+                    aoSair = {
                         adminViewModel.onSair()
                         navController.navigate(Rotas.LOGIN) {
                             popUpTo(Rotas.INICIO) { inclusive = true }
                             launchSingleTop = true
                         }
-                    },
-                    textoAcao = "Sair / trocar jogador"
+                    }
                 )
             }
 
