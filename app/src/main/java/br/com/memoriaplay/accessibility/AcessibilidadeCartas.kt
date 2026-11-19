@@ -20,8 +20,7 @@ object AcessibilidadeCartas {
 
     fun avisoProgresso(paresEncontrados: Int, totalPares: Int): String =
         "$paresEncontrados de $totalPares pares encontrados."
-
-    fun avisoVitoria(tentativas: Int, tempoSegundos: Int): String {
+fun avisoVitoria(tentativas: Int, tempoSegundos: Int): String {
         val tentativasTexto = if (tentativas == 1) "1 tentativa" else "$tentativas tentativas"
         return "Parabéns! Você encontrou todos os pares em $tentativasTexto e ${tempoPorExtenso(tempoSegundos)}."
     }
